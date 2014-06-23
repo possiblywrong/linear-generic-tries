@@ -1,0 +1,559 @@
+<!--
+Google IO 2012/2013 HTML5 Slide Template
+
+Authors: Eric Bidelman <ebidel@gmail.com>
+         Luke Mahé <lukem@google.com>
+
+URL: https://code.google.com/p/io-2012-slides
+-->
+<!DOCTYPE html>
+<html>
+<head>
+  <title></title>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="chrome=1">
+  <!--<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">-->
+  <!--<meta name="viewport" content="width=device-width, initial-scale=1.0">-->
+  <!--This one seems to work all the time, but really small on ipad-->
+  <!--<meta name="viewport" content="initial-scale=0.4">-->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="stylesheet" media="all" href="theme/css/default.css">
+  <link rel="stylesheet" media="only screen and (max-device-width: 480px)" href="theme/css/phone.css">
+  <base target="_blank"> <!-- This amazingness opens all links in a new tab. -->
+  <script data-main="js/slides" src="js/require-1.0.8.min.js"></script>
+</head>
+<body style="opacity: 0">
+
+<slides class="layout-widescreen">
+
+  <slide class="logoslide nobackground">
+    <article class="flexbox vcenter">
+    </article>
+  </slide>
+
+  <slide class="title-slide segue nobackground">
+    <!-- The content of this hgroup is replaced programmatically through the slide_config.json. -->
+    <hgroup class="auto-fadein">
+      <h1 data-config-title><!-- populated from slide_config.json --></h1>
+      <h2 data-config-subtitle><!-- populated from slide_config.json --></h2>
+      <p data-config-presenter><!-- populated from slide_config.json --></p>
+    </hgroup>
+  </slide>
+
+  <slide class="nobackground">
+    <article class="flexbox vcenter auto-fadein">
+      <p>
+        Sorting is a great triumph of functional programming
+      </p>
+    </article>
+  </slide>
+
+  <slide>
+    <article class="flexbox vcenter">
+      <span><img src="images/henglein.jpeg"></span><br><br>
+      <p>Fritz Henglein</p></br></br>
+      <ul class="build">
+        <li class="nopoint ref">Generic Top-down Discrimination for</br></br>Sorting and Partitioning in Linear Time</li>
+      </ul>
+    </article>
+  </slide>
+
+  <slide>
+    <article class="flexbox vcenter">
+      <span><img style="height: 200px" src="images/henglein.jpeg">&nbsp;&nbsp;&nbsp;&nbsp;<img src="images/hinze.jpg"></span><br><br>
+      <p>Fritz Henglein &amp; Ralph Hinze</p></br></br>
+      <ul class="build">
+        <li class="nopoint ref">Sorting and Searching by Distribution:</br></br>From Generic Discrimination to Generic Tries</li>
+      </ul>
+    </article>
+  </slide>
+
+  <slide>
+    <article class="flexbox vcenter">
+      <pre class="prettyprint lang-hs" data-lang="hs">
+
+sort :: Order v -> [v] -> [v]
+      </pre>
+      <ul> <li class="nopoint hangleft">&nbsp;</li> </ul>
+    </article>
+  </slide>
+
+  <slide>
+    <article class="flexbox vcenter">
+      <pre class="prettyprint lang-hs" data-lang="hs">
+
+sort :: forall v. Order k -> [(k,v)] -> [v]
+      </pre>
+      <ul class="build">
+        <li class="nopoint hangleft">where k &amp; v are related</li>
+      </ul>
+    </article>
+  </slide>
+
+  <slide>
+    <article class="flexbox vcenter">
+      <pre class="prettyprint lang-hs" data-lang="hs">
+
+sort  :: forall v. Order k -> [(k,v)] -> [v]
+discr :: forall v. Order k -> [(k,v)] -> [[v]]
+trie  :: forall v. Order k -> [(k,v)] -> Trie k [v]
+      </pre>
+      <ul> <li class="nopoint hangleft">&nbsp;</li> </ul>
+    </article>
+  </slide>
+
+  <slide>
+    <article class="flexbox vcenter">
+      <pre class="prettyprint lang-hs" data-lang="hs">
+
+discr _ [] = []
+discr _ [(_, v)] = [[v]]
+      </pre>
+      <ul> <li class="nopoint hangleft">&nbsp;</li> </ul>
+    </article>
+  </slide>
+
+  <slide>
+    <article class="flexbox vcenter">
+      <pre class="prettyprint lang-hs" data-lang="hs">
+data Order t where
+   TrivO :: Order t
+   NatO  :: Int -> Order Int
+   SumL  :: Order t1 -> Order t2 -> Order (Either t1 t2)
+   ProdL :: Order t1 -> Order t2 -> Order (t1, t2)
+   MapO  :: (t1 -> t2) -> Order t2 -> Order t1
+   ListL :: Order t -> Order [t]
+      </pre>
+    </article>
+  </slide>
+
+  <slide>
+    <article class="flexbox vcenter">
+      <pre class="prettyprint lang-hs" data-lang="hs">
+
+discr TrivO xs = [[ v | (_, v) <- xs ]]
+      </pre>
+    </article>
+  </slide>
+
+  <slide>
+    <article class="flexbox vcenter">
+      <pre class="prettyprint lang-hs" data-lang="hs">
+
+type Disc k = forall v. [(k,v)] -> [[v]]
+
+discr :: Order k -> Disc k
+discr (NatO n) xs = discNat n xs
+
+discNat :: Int -> Disc Int
+discNat n xs = filter (not . null) (bdiscNat n update xs)
+
+update :: [v] -> v -> [v]
+update vs v = v : vs
+
+bdiscNat :: Int -> ([v] -> v -> [v]) -> [(Int, v)] -> [[v]]
+bdiscNat (n :: Int) update xs =
+            map reverse (elems (accumArray update [] (0, n-1) xs))
+      </pre>
+    </article>
+  </slide>
+
+  <slide>
+    <article class="flexbox vcenter">
+      <pre class="prettyprint lang-hs" data-lang="hs">
+SumL  :: Order t1 -> Order t2 -> Order (Either t1 t2)
+
+discr (SumL r1 r2) xs = discr r1 [ (k, v) | (Left k, v)  <- xs ]
+                     ++ discr r2 [ (k, v) | (Right k, v) <- xs ]
+      </pre>
+    </article>
+  </slide>
+
+  <slide>
+    <article class="flexbox vcenter">
+      <pre class="prettyprint lang-hs" data-lang="hs">
+
+ProdL :: Order t1 -> Order t2 -> Order (t1, t2)
+
+discr (ProdL r1 r2) xs =
+   [ vs | ys <- discr r1 [ (k1,(k2,v)) | ((k1,k2), v) <-xs],
+          vs <- discr r2 ys ]
+      </pre>
+    </article>
+  </slide>
+
+  <slide>
+    <article class="flexbox vcenter">
+      <pre class="prettyprint lang-hs" data-lang="hs">
+
+MapO  :: (t1 -> t2) -> Order t2 -> Order t1
+
+discr (MapO f r) xs = discr r [ (f k, v) | (k, v) <- xs ]
+      </pre>
+    </article>
+  </slide>
+
+  <slide>
+    <article class="flexbox vcenter">
+      <pre class="prettyprint lang-hs" data-lang="hs">
+
+ListL :: Order t -> Order [t]
+
+discr (ListL r) xs = discr (listL r) xs
+
+listL :: Order t -> Order [t]
+listL r = MapO fromList (SumL ordUnit (ProdL r (listL r)))
+
+fromList :: [t] -> Either () (t, [t])
+fromList [] = Left ()
+fromList (x : xs) = Right (x, xs)
+      </pre>
+    </article>
+  </slide>
+
+  <slide>
+    <article class="flexbox vcenter">
+      <pre class="prettyprint lang-hs" data-lang="hs">
+
+ordUnit :: Order ()
+ordUnit = TrivO
+
+ordNat8 :: Order Int
+ordNat8 = NatO 255
+      </pre>
+    </article>
+  </slide>
+
+  <slide>
+    <article class="flexbox vcenter">
+      <pre class="prettyprint lang-hs" data-lang="hs">
+
+ordInt32 :: Order Int
+ordInt32 = MapO (splitW . (+ (-2147483648))) (ProdL ordNat16 ordNat16)
+
+splitW :: Int -> (Int, Int)
+splitW x = (shiftR x 16 .&. 65535, x .&. 65535)
+      </pre>
+    </article>
+  </slide>
+
+  <slide>
+    <article class="flexbox vcenter">
+      <pre class="prettyprint lang-hs" data-lang="hs">
+
+ordChar8 :: Order Char
+ordChar8 = MapO ord ordNat8
+
+ordChar16 :: Order Char
+ordChar16 = MapO ord ordNat16
+      </pre>
+    </article>
+  </slide>
+
+  <slide>
+    <article class="flexbox vcenter">
+      <pre class="prettyprint lang-hs" data-lang="hs">
+
+ordString8 :: Order String
+ordString8 = listL ordChar8
+
+ordString16 :: Order String
+ordString16 = listL ordChar16
+
+listL r = MapO fromList (SumL ordUnit (ProdL r (listL r)))
+
+fromList :: [t] -> Either () (t, [t])
+fromList [] = Left ()
+fromList (x : xs) = Right (x, xs)
+      </pre>
+    </article>
+  </slide>
+
+  <slide>
+    <div id="anim" class="anim">
+    <a href="" class="button add" onclick="updateNext(); return false">step</a>
+    </div>
+  </slide>
+
+  <slide>
+    <article class="flexbox vcenter">
+      <pre class="prettyprint lang-hs" data-lang="hs">
+
+let ws = ["AA","BCA","BA","BB","AAC","AB"]
+discr $ zip ws ws
+[["AA"],["AAC"],["AB"],["BA"],["BB"],["BCA"]]
+
+-- If we'd input ["AA","BCA","BA","BB","AAC","AB"] ++ ["BCA"]
+[["AA"],["AAC"],["AB"],["BA"],["BB"],["BCA","BCA"]]
+      </pre>
+    </article>
+  </slide>
+
+  <slide class="segue dark nobackground">
+    <hgroup class="auto-fadein">
+      <h2>Trie Harder</h2>
+    </hgroup>
+  </slide>
+
+  <slide>
+    <article class="flexbox vcenter">
+      <pre class="prettyprint lang-scala" data-lang="hs">
+
+data Trie :: ∗ -> ∗ -> ∗ where
+   TEmpty :: Trie k v
+   TUnit  :: v -> Trie() v
+   TSum   :: Trie k1 v -> Trie k2 v -> Trie (k1 + k2) v
+   TProd  :: Trie k1 (Trie k2 v) -> Trie (k1,k2) v
+   TMap   :: (k1 -> k2) -> (Trie k2 v -> Trie k1 v)
+   TChar  :: Char.Trie v -> Trie Char v
+      </pre>
+    </article>
+  </slide>
+
+  <slide>
+    <article class="flexbox vcenter">
+      <pre class="prettyprint lang-scala" data-lang="hs">
+
+instance Functor (Trie k) where
+   fmap f (TEmpty)     = TEmpty
+   fmap f (TUnit v)    = TUnit (f v)
+   fmap f (TSum t1 t2) = TSum (fmap f t1) (fmap f t2)
+   fmap f (TProd t)    = TProd (fmap (fmap f) t)
+   fmap f (TMap g t)   = TMap g (fmap f t)
+   fmap f (TChar t)    = TChar (fmap f t)
+      </pre>
+    </article>
+  </slide>
+
+  <slide>
+    <article class="flexbox vcenter">
+      <pre class="prettyprint lang-scala" data-lang="hs">
+
+trie :: Order k -> [k × v] -> Trie k [v]
+trie o [ ]             = TEmpty
+trie OUnit rel         = TUnit (map val rel)
+trie (OSum o1 o2) rel  = TSum (trie o1 (filter froml rel)) (trie o2 (filter fromr rel))
+trie (OProd o1 o2) rel = TProd (fmap (trie o2) (trie o1 (map curryl rel)))
+trie (OMap g o) rel    = TMap g (trie o (map (g *** id) rel))
+trie (OChar) rel       = TChar (Char.trie rel)
+      </pre>
+    </article>
+  </slide>
+
+  <slide>
+    <article class="flexbox vcenter">
+      <pre class="prettyprint lang-scala" data-lang="hs">
+
+TInt   :: TArray v -> Trie Int v
+
+bdiscNat :: Int -> [(Int, v)] -> TArray [v]
+bdiscNat (n :: Int) = accumArray (flip (:)) [] (0, n-1)
+
+trie (NatO i) rel      = TInt (bdiscNat i rel)
+      </pre>
+    </article>
+  </slide>
+
+  <slide>
+    <article class="flexbox vcenter">
+      <pre class="prettyprint lang-scala" data-lang="hs">
+
+tlookup :: Trie k v -> k -> Maybe v
+tlookup TEmpty _              = Nothing
+tlookup (TUnit v) ()          = Just v
+tlookup (TSum t1 _) (Left a)  = tlookup t1 a
+tlookup (TSum _ t2) (Right a) = tlookup t2 a
+tlookup (TProd t1) (k1,k2)    = tlookup t1 k1 >>= (\t2 -> tlookup t2 k2)
+tlookup (TMap g t1) k         = tlookup t1 $ g(k)
+tlookup (TInt t1) k           = Just $ t1 ! k
+      </pre>
+    </article>
+  </slide>
+
+  <slide class="segue dark nobackground">
+    <hgroup class="auto-fadein">
+      <h2>Demo</h2>
+    </hgroup>
+  </slide>
+
+  <slide>
+    <article class="flexbox vcenter">
+      <pre class="prettyprint lang-scala" data-lang="scala">
+
+abstract class Order[A]
+case class TrivO[A]() extends Order[A]
+case class NatO(i: Int) extends Order[Int]
+case class SumL[A,B](t1: Order[A], t2: Order[B]) extends Order[Either[A,B]]
+case class ProdL[A,B](t1: Order[A], t2: Order[B]) extends Order[(A,B)]
+case class MapO[A,B](f: A => B, t2: Order[B]) extends Order[A]
+case class ListL[A](t: Order[A]) extends Order[Stream[A]]
+      </pre>
+      <pre class="prettyprint lang-hs" data-lang="hs">
+data Order t where
+   TrivO :: Order t
+   NatO  :: Int -> Order Int
+   SumL  :: Order t1 -> Order t2 -> Order (Either t1 t2)
+   ProdL :: Order t1 -> Order t2 -> Order (t1, t2)
+   MapO  :: (t1 -> t2) -> Order t2 -> Order t1
+   ListL :: Order t -> Order [t]
+      </pre>
+    </article>
+  </slide>
+
+  <slide>
+    <article class="flexbox vcenter">
+      <pre class="prettyprint lang-scala" data-lang="scala">
+
+val ordUnit = TrivO[Unit]()
+val ordNat8 = NatO(255)
+val ordInt32 = MapO(splitW º {x:Int => x+(-2147483648)}, ProdL(ordNat16, ordNat16))
+def splitW: Int => (Int,Int) = x => ((x>>16) & 65535,x & 65535)
+val ordChar8 = MapO({x: Char => x.toInt},ordNat8)
+val ordString8 = ListL(ordChar8)
+     </pre>
+
+     <pre class="prettyprint lang-hs" data-lang="hs">
+
+ordUnit = TrivO
+ordNat8 = NatO 255
+ordInt32 = MapO (splitW . (+ (-2147483648))) (ProdL ordNat16 ordNat16)
+splitW x = (shiftR x 16 .&. 65535, x .&. 65535)
+ordChar8 = MapO ord ordNat8
+ordString8 = listL ordChar8
+     </pre>
+    </article>
+  </slide>
+
+  <slide>
+    <article class="flexbox vcenter smaller">
+      <pre class="prettyprint lang-scala" data-lang="scala">
+def sort[A,B](ord: Order[A], xs: Stream[(A,B)]): Stream[Stream[B]] =
+   xs match {
+      case Stream() => Stream()
+      case Stream((_,v)) => Stream(Stream(v))
+      case _ => ord match {
+         case TrivO() => Stream(xs map { _._2 })
+         case n: NatO => sortNat(n,xs)
+         case SumL(orda,ordb) => sortSum(orda,ordb,xs)
+         case ProdL(orda,ordb) => sortProd(orda,ordb,xs)
+         case MapO(f,ordb) => sortMap(f,ordb,xs)
+         case ListL(orda) => sortList(orda,xs)
+      }
+   }
+def stripPartition[A](l: Stream[A]): (Either[Unit,(A,Stream[A])])  =
+   l.headOption.cata( { x: A => Right((x,l.tail)) }, { Left(()) } )
+def sortList[A,B](orda: Order[A], xs: Stream[(Stream[A],B)]): Stream[Stream[B]] =
+   sort(MapO(stripPartition[A], SumL(ordUnit,ProdL(orda,ListL(orda)))), xs)
+def sortMap[A,B,C](f: A => B, ordb: Order[B], xs: Stream[(A,C)]): Stream[Stream[C]] =
+   sort(ordb,xs map { case (a,c) => (f(a),c) })
+def sortProd[A,B,C](orda: Order[A], ordb: Order[B], xs: Stream[((A,B),C)]): Stream[Stream[C]] =
+   sort(orda,xs map { case ((a,b),c) => (a,(b,c)) }) flatMap { sort(ordb,_) }
+def sortSum[A,B,C](orda: Order[A], ordb: Order[B], xs: Stream[(Either[A,B],C)]): Stream[Stream[C]] = {
+   val (lefts,rights) = xs.foldRight((Stream[(A,C)](),Stream[(B,C)]())) {
+      case ((Left(x),v),(ls,rs)) => (ls :+ (x,v),rs)
+      case ((Right(x),v),(ls,rs)) => (ls,rs :+ (x,v))
+   }
+   sort(orda,lefts) ++ sort(ordb,rights)
+}
+     </pre>
+    </article>
+  </slide>
+
+  <slide>
+    <article class="flexbox vcenter">
+      <pre class="prettyprint lang-scala" data-lang="scala">
+
+def sortNat[A](z: NatO, xs: Stream[(Int,A)]): Stream[Stream[A]] = {
+  val arr = new Array[MutableList[A]](z.i+1)
+  xs.foreach { arg: (Int,A) =>
+     val idx = arg._1
+     if(arr(idx) == null) arr(idx) = MutableList[A](arg._2)
+     else arr(idx) += arg._2
+  }
+  arr.toStream.filter(_ != null).map(_.toStream)
+}
+     </pre>
+    </article>
+  </slide>
+
+  <slide>
+    <hgroup>
+      <h2>Semantics!</h2>
+    </hgroup>
+    <article class="flexbox vcenter">
+      <ul class="build">
+        <li>Lazy vs Strict matters!</li>
+        <li>Garbage collection</li>
+        <li>Recursion</li>
+        <li>Stability</li>
+      </ul>
+    </article>
+  </slide>
+
+  <slide>
+    <hgroup>
+      <h2>Scala vs Haskell - FIGHT!</h2>
+    </hgroup>
+    <article class="flexbox vcenter">
+      <ul class="build">
+        <li>Both more or less can encode the algorithm</li>
+        <li>Scala
+            <ul class="build">
+               <li>more verbose</li>
+               <li>typesystem needs more hand holding</li>
+               <li>lacks 'proper' tail-calls, polyfill with tramoplining &amp; Free</li>
+               <li>you have to explicitly manage lazyness</li>
+               <li>garbage creation/collection is a cost</li>
+               <li><strike>friends don't let friends use Stream</strike></li>
+            </ul>
+        </li>
+        <li>Haskell
+            <ul class="build">
+               <li>more natural encoding</li>
+               <li>still has garbage creation/coll cost</li>
+               <li>'probably' harder to encode dependent types as optimizations</li>
+            </ul>
+        </li>
+      </ul>
+    </article>
+  </slide>
+
+  <slide>
+    <article class="flexbox vcenter">
+      <span><img src="images/sort_scala_perf.png" style="width: auto; height: 500px;"></span>
+    </article>
+  </slide>
+
+  <slide>
+    <hgroup>
+      <h2>References</h2>
+    </hgroup>
+    <article class="flexbox vcenter">
+        <ul>
+        <li>Fritz Henglein: <a href="http://www.diku.dk/~henglein/">DIKU CS Dept</a></li>
+        <li>Ralf Hinze: <a href="http://www.cs.ox.ac.uk/ralf.hinze/">Oxford CS Dept</a></li>
+        <li><br/><br/>
+        <a class="smalltext" href="www.diku.dk/hjemmesider/ansatte/henglein/papers/henglein2011a.pdf">Generic Top-down Discrimination for Sorting and Partitioning in Linear Time</a><br/><br/>
+        <a class="smalltext" href="www.cs.ox.ac.uk/ralf.hinze/WG2.8/31/slides/aplas2013.pdf">Sorting and Searching by Distribution: From Generic Discrimination to Generic Tries</a><br/><br/>
+        <a class="smalltext" href="http://www.cs.ox.ac.uk/ralf.hinze/publications/GGTries.ps.gz">Generalizing generalized tries</a><br/><br/>
+        <a class="smalltext" href="https://www.youtube.com/watch?v=sz9ZlZIRDAg">Video: IFL 2012. Fritz Henglein: Generic sorting and partitioning in linear time and fully abstractly</a></li>
+         </ul>
+    </article>
+  </slide>
+
+  <slide class="thank-you-slide segue nobackground">
+    <article class="flexbox vcenter auto-fadein">
+    <p class="auto-fadein" data-config-contact>
+      <!-- populated from slide_config.json -->
+    </p>
+    </article>
+  </slide>
+
+  <slide class="backdrop"></slide>
+
+</slides>
+
+<script type="text/javascript" src="js/d3.v2.min.js"></script>
+<script type="text/javascript" src="js/anim.js"></script>
+</body>
+</html>
